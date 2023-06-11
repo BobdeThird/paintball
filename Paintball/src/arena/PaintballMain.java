@@ -58,7 +58,7 @@ public class PaintballMain extends javax.swing.JFrame {
         team[2] = new Player[20];
         
         //fill team rosters (EDIT THIS PART TO CHANGE TEAM MEMBERS)
-        team[1][0] = new Player(1, new Technoblade());
+        team[1][0] = new Player(1, new BobdeThird());
         team[1][1] = new Player(1, new Sprinkler());
         team[1][2] = new Player(1, new Sprinkler());
         team[1][3] = new Player(1, new Sprinkler());

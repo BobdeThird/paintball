@@ -204,43 +204,27 @@ public class BobdeThird implements Brain {
     // a = shots / people, b = player
     // check if there are any obstacles in between to protect
     public boolean inBetween(int aRow, int aCol, int bRow, int bCol, Board b) {
-        
-        int currX = Math.min(aRow, bRow);
-        int currY = Math.min(aCol, bCol);
-        
-       
-        
-        for(int i = Math.min(aRow, bRow); i < Math.max(aRow, bRow); i++) {
-            for(int j = Math.min(aCol, bCol); j < Math.max(aCol, bCol); j++) {
-                if(pureObsMap[i][j] == 0) {
-                    //System.out.println("PLEASEEEEE");
-                }
-                
-                if(aRow - bRow == 0 && i == aRow)
-                    //System.out.println("BROWAHT");
-                
-                if(aCol - bCol == 0 && j == aCol)
-                    //System.out.println("SD:FLJKSDLKFSJD");
-                
-                if(Math.abs(aRow - bRow) == Math.abs(aCol - bCol) && (i - currX) == (j - currY))
-                    //System.out.println("DISCRIMINATION");
-                
-                if(aRow - bRow == 0 && i == aRow && pureObsMap[i][j] == 0) { // horizontals
-                    //System.out.println("TRUE");
-                    return true;
-                }
-                else if(aCol - bCol == 0 && j == aCol && pureObsMap[i][j] == 0) { // verticals
-                    //System.out.println("T");
-                    return true;
-                }
-                else if(Math.abs(aRow - bRow) == Math.abs(aCol - bCol) && (i - currX) == (j - currY) && pureObsMap[i][j] == 0) { // diagonals
-                    //System.out.println("TRR");
-                    return true;
-                }
-            }
-        }
-        
-        return false;
+        // getting the next location
+        int dir = Direction.getDirectionTowards(aRow, aCol, bRow, bCol);
+        int[] next = Direction.getLocInDirection(aRow, aCol, dir);
+
+        // differences
+        int rowDiff = Math.abs(aRow - bRow);
+        int colDiff = Math.abs(aCol - bCol);
+
+        // if they're not even lined up, there is nothing in between, return false
+        if(rowDiff != 0 || colDiff != 0 || rowDiff != colDiff)
+            return false;
+
+        // if there is an obstacle, return true
+        if(b.isValid(aRow, aCol) && !b.isEmpty(aRow, aCol)) 
+            return true;
+
+        // if we've looped enough, and the positions are all checked, return false
+        if(rowDiff == 0 && colDiff == 0)
+            return false;
+
+        return inBetween(next[0], next[1], bRow, bCol, b);
     }
     
     
@@ -342,9 +326,10 @@ public class BobdeThird implements Brain {
             if(inBetween(p.getRow(), p.getCol(), bRow, bCol, b)) {
                 //System.out.println("FIGHT");
                 int[] oneAhead = Direction.getLocInDirection(p.getRow(), p.getCol(), p.getDirection());
-                int[] clear = Direction.getLocInDirection(p.getRow(), p.getCol(), (p.getDirection() + 180) % 360);
-                if(pureObsMap[oneAhead[0]][oneAhead[1]] == 0 && map[clear[0]][clear[1]] == 1) {
-                    return new Action("M", (p.getDirection() + 180) % 360);
+                int[] clear = Direction.getLocInDirection(p.getRow(), p.getCol(), (p.getDirection() + 180));
+                if(!b.isEmpty(oneAhead[0], oneAhead[1]) && map[clear[0]][clear[1]] == 1) {
+                    System.out.println("FIGHITNG");
+                    return new Action("M", (p.getDirection() + 180));
                 }
             }
                 
@@ -420,7 +405,7 @@ public class BobdeThird implements Brain {
             prefShotLoc = new int[][]{{15, 48}, {17, 48}, {16, 47}, {16, 48}, {14, 49}, {18, 49}, {15, 49}, {17, 49}, {16, 46}, {14, 47}, {18, 47}, {19, 46}, {13, 46}, {13, 49}, {19, 49}};
         
         for(int[] coords : prefShotLoc) {
-            if(map[coords[0]][coords[1]] == 1 && !(inBetween(coords[0], coords[1], bRow, bCol, b) && Direction.moveDistance(coords[0], coords[1], bRow, bCol) < 3)) 
+            if(map[coords[0]][coords[1]] == 1 && !inBetween(coords[0], coords[1], bRow, bCol, b)) 
                 return new int[] {coords[0], coords[1]};
         }
         

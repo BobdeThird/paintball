@@ -46,13 +46,15 @@ public class Technoblade implements Brain {
         //     System.out.println();
         // }
 
-        System.out.println();
+        // System.out.println();
 
         // dodge
         int dir = dodge(p, b);
 
-        if(dir >= 0) 
+        if(dir >= 0) {
+            System.out.println("DODGE");
             return new Action("M", dir);
+        }
 
         // if we can shoot players or base right now
 
@@ -66,12 +68,13 @@ public class Technoblade implements Brain {
         Cell next = shortestPath(map, new int[]{p.getRow(), p.getCol()}, new int[]{locRow, locCol});
         
         if(next != null) {
+            System.out.println("ROUTE");
             int dirToBase = Direction.getDirectionTowards(p.getRow(), p.getCol(),
                                    next.x, next.y);   
             return new Action("M", dirToBase);   
         }
-
-
+        System.out.println(Arrays.toString(optimalLocation) + b.isEmpty(locRow, locCol));
+        System.out.println("SHOOT");
         return new Action("S");
     }
 
@@ -112,7 +115,7 @@ public class Technoblade implements Brain {
             int bestRow = best[0];
             int bestCol = best[1];
             int dir = Direction.getDirectionTowards(p.getRow(), p.getCol(), bestRow, bestCol);
-            if(b.isValid(bestRow, bestCol) && map[bestRow][bestCol] == 1 && !sameDirection(bestRow, bestCol, b)) {
+            if(b.isValid(bestRow, bestCol) && map[bestRow][bestCol] == 1 && !sameDirection(p, bestRow, bestCol, b)) {
                 return dir;
             }
         }
@@ -121,7 +124,7 @@ public class Technoblade implements Brain {
         return -2;
     }
 
-    public boolean sameDirection(int aRow, int aCol, Board b) {
+    public boolean sameDirection(Player p, int aRow, int aCol, Board b) {
         // check if shots are going in same direction
         List<Shot> shotPos = b.getAllShots();
         for(Shot curr : shotPos) {
@@ -130,7 +133,7 @@ public class Technoblade implements Brain {
             int dist = Direction.moveDistance(currRow, currCol, aRow, aCol);
             int shotDir = curr.getDirection();
 
-            if(dist <= 2 && shotDir == Direction.getDirectionTowards(currRow, currCol, aRow, aCol)) 
+            if(dist <= 2 && shotDir - Direction.getDirectionTowards(p.getRow(), p.getCol(), aRow, aCol) % 180 == 0) 
                 return true;
         }
 
@@ -142,7 +145,7 @@ public class Technoblade implements Brain {
             int dist = Direction.moveDistance(currRow, currCol, aRow, aCol);
             int playerDir = curr.getDirection();
 
-            if(dist <= 2 && playerDir == Direction.getDirectionTowards(currRow, currCol, aRow, aCol)) 
+            if(dist <= 2 && playerDir - Direction.getDirectionTowards(p.getRow(), p.getCol(), aRow, aCol) % 180 == 0) 
                 return true;
         }
 
@@ -162,7 +165,7 @@ public class Technoblade implements Brain {
             int currRow = coords[0];
             int currCol = coords[1];
             int dist = Direction.moveDistance(p.getRow(), p.getCol(), currRow, currCol);
-            if(map[currRow][currCol] == 1 && !inBetween(p.getRow(), p.getCol(), currRow, currCol, b, dist)) {
+            if(map[currRow][currCol] == 1 && !inBetween(p.getRow(), p.getCol(), currRow, currCol, b)) {
                 return coords;
             }
         }
@@ -171,7 +174,7 @@ public class Technoblade implements Brain {
         return new int[] {-1, -1};
     }
 
-    public boolean inBetween(int aRow, int aCol, int bRow, int bCol, Board b, int dist) {
+    public boolean inBetween(int aRow, int aCol, int bRow, int bCol, Board b) {
         // getting the next location
         int dir = Direction.getDirectionTowards(aRow, aCol, bRow, bCol);
         int[] next = Direction.getLocInDirection(aRow, aCol, dir);
@@ -192,31 +195,35 @@ public class Technoblade implements Brain {
         if(rowDiff == 0 && colDiff == 0)
             return false;
 
-        return inBetween(next[0], next[1], bRow, bCol, b, dist);
+        return inBetween(next[0], next[1], bRow, bCol, b);
     }
 
     public void updateMap(Player p, Board b) {
-        map = new int[33][50];
 
         for(int i = 0; i < map.length; i++) {
             for(int j = 0; j < map[0].length; j++) {
-                if(b.isEmpty(i, j) || (p.getRow() == i && p.getCol() == j))
+                if(b.isEmpty(i, j))
                     map[i][j] = 1;
+                else
+                    map[i][j] = 0;
             }
         }
+        map[p.getRow()][p.getCol()] = 1;
+
         for(int i = 0; i < map.length; i++) {
             for(int j = 0; j < map[0].length; j++) {
                 // Check all players and 2 spots ahead
                 if(b.get(i, j) instanceof Player) {
-                    if(p.getRow() != i || p.getCol() != j) { // make sure it's not me
-                        Player curr = (Player) b.get(i, j);
+                    if(!(p.getRow() == i && p.getCol() == j)) { // make sure it's not me
                         map[i][j] = 0;
+
+                        Player curr = (Player) b.get(i, j);
                         int dir = curr.getDirection();
+
                         int[] next1 = Direction.getLocInDirection(i, j, dir);
                         int[] next2 = Direction.getLocInDirection(next1[0], next1[1], dir);
-
-                        // set them to obstacles
-                        if(b.isValid(next2[0], next2[1])) {
+                        
+                        if(b.isValid(next2[0], next2[1]) && !(b.get(next1[0], next1[1]) instanceof Blocker)) {
                             map[next2[0]][next2[1]] = 0;
                         }
                     }
@@ -224,16 +231,17 @@ public class Technoblade implements Brain {
                 // check all shots and 2 spots ahead
                 if(b.get(i, j) instanceof Shot) {
                     map[i][j] = 0;
+
                     Shot curr = (Shot) b.get(i, j);
                     int dir = curr.getDirection();
+
                     int[] next1 = Direction.getLocInDirection(i, j, dir);
                     int[] next2 = Direction.getLocInDirection(next1[0], next1[1], dir);
-
-                    // set them to obstacles
+                    
                     if(b.isValid(next1[0], next1[1])) {
                         map[next1[0]][next1[1]] = 0;
                     }
-                    if(b.isValid(next2[0], next2[1])) {
+                    if(b.isValid(next2[0], next2[1]) && !(b.get(next1[0], next1[1]) instanceof Blocker)) {
                         map[next2[0]][next2[1]] = 0;
                     }
                 }
