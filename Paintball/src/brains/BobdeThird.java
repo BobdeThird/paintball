@@ -19,8 +19,8 @@ public class BobdeThird implements Brain {
     int baseRow = 16;
     int baseCol = 47;
     
-    int bRow = 16;
-    int bCol = 49;
+    int bbRow = 16;
+    int bbCol = 49;
     
     int[][] map = new int[33][50];
     int[][] realMap = new int[33][50];
@@ -43,20 +43,20 @@ public class BobdeThird implements Brain {
 
     @Override
     public Action getMove(Player p, Board b) {
-        bCol = b.getBase(3 - p.getTeam()).getCol();
-                
+        bbCol = b.getBase(3 - p.getTeam()).getCol();
+
         updateMap(p, b);
         Action next = dodgeRoute(p, b);
-        
+
         if(next == null) {
-            int dir = Direction.getDirectionTowards(p.getRow(), p.getCol(), bRow, bCol);
+            int dir = Direction.getDirectionTowards(p.getRow(), p.getCol(), bbRow, bbCol);
             int[] coor = Direction.getLocInDirection(p.getRow(), p.getCol(), dir);
-            
-            if(map[coor[0]][coor[1]] == 1)
+
+            if(b.isValid(coor[0], coor[1]) && map[coor[0]][coor[1]] == 1)
                 return new Action("M", dir);
             // use real map to decide if all spots are helpless
             // TODO: Also check if timer for shooting ran out before crossing out a place 1 block away 
-           return new Action("T", 0);
+           return new Action("T", 270);
         }
         
         return next;
@@ -85,8 +85,7 @@ public class BobdeThird implements Brain {
             int tempCol = i.getCol();
             int direction = i.getDirection();
             pureObsMap[tempRow][tempCol] --;
-            if(tempCol < 0)
-                tempCol = 0;
+         
             if(direction == 0 && b.isValid(tempRow - 1, tempCol))
                 map[tempRow - 1][tempCol] = 0;
             else if(direction == 45 && b.isValid(tempRow - 1, tempCol + 1))
@@ -184,7 +183,7 @@ public class BobdeThird implements Brain {
     }
         
     public boolean canShoot(Player p, Board b) {
-        return directAim(p, p.getRow(), p.getCol(), bRow, bCol) && inBetween(p.getRow(), p.getCol(), bRow, bCol, b);
+        return directAim(p, p.getRow(), p.getCol(), bbRow, bbCol) && !inBetween(p.getRow(), p.getCol(), bbRow, bbCol, b);
     }
     
     public boolean directShot(Shot curr, int sRow, int sCol, int pRow, int pCol) {
@@ -204,25 +203,28 @@ public class BobdeThird implements Brain {
     // a = shots / people, b = player
     // check if there are any obstacles in between to protect
     public boolean inBetween(int aRow, int aCol, int bRow, int bCol, Board b) {
-        // getting the next location
-        int dir = Direction.getDirectionTowards(aRow, aCol, bRow, bCol);
-        int[] next = Direction.getLocInDirection(aRow, aCol, dir);
-
+        
         // differences
         int rowDiff = Math.abs(aRow - bRow);
         int colDiff = Math.abs(aCol - bCol);
 
+        if(Direction.moveDistance(aRow, aCol, bRow, bCol) == 1)
+            return false;
+
+        if(rowDiff == 0 && colDiff == 0)
+            return false;
+
         // if they're not even lined up, there is nothing in between, return false
-        if(rowDiff != 0 || colDiff != 0 || rowDiff != colDiff)
+        if(!(rowDiff != 0 || colDiff != 0 || rowDiff != colDiff))
             return false;
 
         // if there is an obstacle, return true
-        if(b.isValid(aRow, aCol) && !b.isEmpty(aRow, aCol)) 
+        if(b.isValid(aRow, aCol) && b.get(aRow, aCol) instanceof Player) 
             return true;
 
-        // if we've looped enough, and the positions are all checked, return false
-        if(rowDiff == 0 && colDiff == 0)
-            return false;
+        // getting the next location
+        int dir = Direction.getDirectionTowards(aRow, aCol, bRow, bCol);
+        int[] next = Direction.getLocInDirection(aRow, aCol, dir);
 
         return inBetween(next[0], next[1], bRow, bCol, b);
     }
@@ -231,6 +233,20 @@ public class BobdeThird implements Brain {
     // dodging while going to the base
     public Action dodgeRoute(Player p, Board b) {
         
+        int[] coords = bestShootLoc(b, p);
+
+        if(coords[0] != -1) {
+            baseRow = coords[0];
+            baseCol = coords[1];
+        } else {
+            baseRow = 17;
+            if(bbCol == 0)
+                baseCol = 2;
+            else
+                baseCol = 48;
+        }
+
+
         // find preferred positions to go to and sort them by distance
         List<int[]> prefPos = Arrays.asList(
             new int[]{Direction.moveDistance(p.getRow(), p.getCol() + 1, baseRow, baseCol), p.getRow(), p.getCol() + 1},
@@ -270,7 +286,7 @@ public class BobdeThird implements Brain {
                     continue;
 
                 // check if the space is free OR if you'll die
-                if(map[nextMove[1]][nextMove[2]] == 1 && !(directShot(curr, sRow, sCol, nextMove[1], nextMove[2])) && !inBetween(sRow, sCol, nextMove[1], nextMove[2], b)) {
+                if(map[nextMove[1]][nextMove[2]] == 1 && !(directShot(curr, sRow, sCol, nextMove[1], nextMove[2]))) {
                     return new Action("M", Direction.getDirectionTowards(p.getRow(), p.getCol(), nextMove[1], nextMove[2]));
                 }
             }   
@@ -295,11 +311,11 @@ public class BobdeThird implements Brain {
             // legit threat
             for(int[] nextMove : prefPos) {
                 // check that the moves aren't out of bounds
-                if(!b.isValid(nextMove[0], nextMove[1]))
+                if(!b.isValid(nextMove[1], nextMove[2]))
                     continue;
 
                 // check if the space is free OR if you'll die
-                if(map[nextMove[1]][nextMove[2]] == 1 && !(directAim(curr, pRow, pCol, nextMove[1], nextMove[2])) && !inBetween(pRow, pCol, nextMove[1], nextMove[2], b)) {
+                if(map[nextMove[1]][nextMove[2]] == 1 && !(directAim(curr, pRow, pCol, nextMove[1], nextMove[2]))) {
                     return new Action("M", Direction.getDirectionTowards(p.getRow(), p.getCol(), nextMove[1], nextMove[2]));
                 }
                 
@@ -313,56 +329,46 @@ public class BobdeThird implements Brain {
             return new Action("S");
         }
         
-        int rowDiff = Math.abs(p.getRow() - bRow);
-        int colDiff = Math.abs(p.getCol() - bCol);
+        int rowDiff = Math.abs(p.getRow() - bbRow);
+        int colDiff = Math.abs(p.getCol() - bbCol);
         
-        if((rowDiff == 0 || colDiff == 0 || rowDiff == colDiff) && Direction.moveDistance(p.getRow(), p.getCol(), bRow, bCol) <= 3) {
-            if(p.getDirection() != Direction.getDirectionTowards(p.getRow(), p.getCol(),
-                                   bRow, bCol)) 
-            return new Action("T", Direction.getDirectionTowards(p.getRow(), p.getCol(),
-                                   bRow, bCol));
-            
-            //System.out.println("SHOOTING" + inBetween(p.getRow(), p.getCol(), bRow, bCol, b));
-            if(inBetween(p.getRow(), p.getCol(), bRow, bCol, b)) {
-                //System.out.println("FIGHT");
-                int[] oneAhead = Direction.getLocInDirection(p.getRow(), p.getCol(), p.getDirection());
-                int[] clear = Direction.getLocInDirection(p.getRow(), p.getCol(), (p.getDirection() + 180));
-                if(!b.isEmpty(oneAhead[0], oneAhead[1]) && map[clear[0]][clear[1]] == 1) {
-                    System.out.println("FIGHITNG");
-                    return new Action("M", (p.getDirection() + 180));
+        if((rowDiff == 0 || colDiff == 0 || rowDiff == colDiff) && Direction.moveDistance(p.getRow(), p.getCol(), bbRow, bbCol) <= 3) {
+            if(!inBetween(p.getRow(), p.getCol(), bbRow, bbCol, b)) {
+                if(p.getDirection() != Direction.getDirectionTowards(p.getRow(), p.getCol(), bbRow, bbCol)) {
+                    return new Action("T", Direction.getDirectionTowards(p.getRow(), p.getCol(), bbRow, bbCol));
                 }
+                
+                //System.out.println("SHOOTING" + inBetween(p.getRow(), p.getCol(), bRow, bCol, b));
+                if(inBetween(p.getRow(), p.getCol(), bbRow, bbCol, b)) {
+                    //System.out.println("FIGHT");
+                    int[] oneAhead = Direction.getLocInDirection(p.getRow(), p.getCol(), p.getDirection());
+                    int[] clear = Direction.getLocInDirection(p.getRow(), p.getCol(), (p.getDirection() + 180));
+                    if(!b.isEmpty(oneAhead[0], oneAhead[1]) && map[clear[0]][clear[1]] == 1) {
+                        System.out.println("FIGHITNG");
+                        return new Action("M", (p.getDirection() + 180));
+                    }
+                }
+                    
+                
+                return new Action("S");
             }
-                
-            
-            return new Action("S");
         }
             
+        
 
-        int[] coords = bestShootLoc(b, p);
+       //System.out.println(coords[0] + " " + coords[1]);
         
-        if(coords[0] != -1) {
-            baseRow = coords[0];
-            baseCol = coords[1];
-        } else {
-            baseRow = 16;
-            if(bCol == 0)
-                baseCol = 2;
-            else
-                baseCol = 47;
-        }
-        
-                
         // Shortest Route Moment
         Cell next = shortestPath(map, new int[]{p.getRow(), p.getCol()}, new int[]{baseRow, baseCol});
                 
         if(next == null) {
             
-            if(Direction.moveDistance(p.getRow(), p.getCol(), bRow, bCol) > 5) {
+            if(Direction.moveDistance(p.getRow(), p.getCol(), bbRow, bbCol) > 5) {
                 
-                int fakeRow = bRow;
-                int fakeCol = bCol;
+                int fakeRow = bbRow;
+                int fakeCol = bbCol;
                 
-                if(bCol == 0) {
+                if(bbCol == 0) {
                     fakeCol += 5;
                 } else {
                     fakeCol -= 5;
@@ -375,19 +381,18 @@ public class BobdeThird implements Brain {
                 return new Action("S");
         }
         
-        if(canShoot(p, b)) {
-            return new Action("S");
-        }
-        
         if(p.getRow() == next.x && p.getCol() == next.y) {
+            //System.out.println("SHOULDBENT BE HERE");
             if(p.getDirection() != Direction.getDirectionTowards(p.getRow(), p.getCol(),
-                                   16, 49)) 
+                                   bbRow, bbCol)) 
             return new Action("T", Direction.getDirectionTowards(p.getRow(), p.getCol(),
-                                   16, 49));
+                                   bbRow, bbCol));
             
             return new Action("S");
         }
         
+        //System.out.println(baseRow + " " + baseCol);
+
         int dirToBase = Direction.getDirectionTowards(p.getRow(), p.getCol(),
                                    next.x, next.y);   
         return new Action("M", dirToBase);           
@@ -399,13 +404,30 @@ public class BobdeThird implements Brain {
         int[][] prefShotLoc;
         
         // probably very inefficient but screw it LOL
-        if(bCol == 0) 
+        if(bbCol == 0) 
             prefShotLoc = new int[][]{{15, 1}, {17, 1}, {16, 2}, {16, 1}, {14, 0}, {18, 0}, {15, 0}, {17, 0}, {16, 3}, {14, 2}, {18, 2}, {19, 3}, {13, 3}, {13, 0}, {19, 0}};
         else 
             prefShotLoc = new int[][]{{15, 48}, {17, 48}, {16, 47}, {16, 48}, {14, 49}, {18, 49}, {15, 49}, {17, 49}, {16, 46}, {14, 47}, {18, 47}, {19, 46}, {13, 46}, {13, 49}, {19, 49}};
         
         for(int[] coords : prefShotLoc) {
-            if(map[coords[0]][coords[1]] == 1 && !inBetween(coords[0], coords[1], bRow, bCol, b)) 
+            int dir = Direction.getDirectionTowards(coords[0], coords[1], bbRow, bbCol);
+            if(Direction.moveDistance(coords[0], coords[1], bbRow, bbCol) == 2) {
+                int[] next = Direction.getLocInDirection(coords[0], coords[1], dir);
+                if(map[next[0]][next[1]] == 0)
+                    continue;
+            }
+
+            if(Direction.moveDistance(coords[0], coords[1], bbRow, bbCol) == 3) {
+                int[] next1 = Direction.getLocInDirection(coords[0], coords[1], dir);
+                if(map[next1[0]][next1[1]] == 0)
+                    continue;
+
+                int[] next2 = Direction.getLocInDirection(next1[0], next1[1], dir);
+                if(map[next2[0]][next2[1]] == 0)
+                    continue;
+            }
+
+            if(map[coords[0]][coords[1]] == 1 && !inBetween(coords[0], coords[1], bbRow, bbCol, b)) 
                 return new int[] {coords[0], coords[1]};
         }
         

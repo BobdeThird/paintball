@@ -59,10 +59,10 @@ public class PaintballMain extends javax.swing.JFrame {
         
         //fill team rosters (EDIT THIS PART TO CHANGE TEAM MEMBERS)
         team[1][0] = new Player(1, new BobdeThird());
-        team[1][1] = new Player(1, new Sprinkler());
-        team[1][2] = new Player(1, new Sprinkler());
-        team[1][3] = new Player(1, new Sprinkler());
-        team[1][4] = new Player(1, new Sprinkler());
+        team[1][1] = new Player(1, new BobdeThird());
+        team[1][2] = new Player(1, new BobdeThird());
+        team[1][3] = new Player(1, new BobdeThird());
+        team[1][4] = new Player(1, new BobdeThird());
         team[1][5] = new Player(1, new Sprinkler());
         team[1][6] = new Player(1, new BrandoBot());
         team[1][7] = new Player(1, new BrandoBot());
@@ -191,6 +191,38 @@ public class PaintballMain extends javax.swing.JFrame {
                 shotList.remove(randGen.nextInt(shotList.size())).move();
         }
         turn++;
+
+        if(turn == 15000) {
+            int nameFieldWidth = 0, coderFieldWidth = 0;
+            for (int t = 1; t <= 2; t++) {
+                for (int i = 0; i < team[t].length; i++) {
+                    if (team[t][i].getController().getName().length() > nameFieldWidth)
+                        nameFieldWidth = team[t][i].getController().getName().length();
+                    if (team[t][i].getController().getCoder().length() > coderFieldWidth)
+                        coderFieldWidth = team[t][i].getController().getCoder().length();
+                }   
+            }
+            for (int t = 1; t <= 2; t++) {
+                System.out.println("\nTeam " + t + ":");
+                String formatStr = "%" + nameFieldWidth +
+                        "s %" + coderFieldWidth +
+                        "s %5s %5s %6s %6s %4s %5s\n";
+                System.out.printf(formatStr, "Name", "Coder",
+                        "kills", "frags", "deaths", "enemyB", "ownB",
+                        "score");
+                for (int i = 0; i < team[t].length; i++) {
+                    Player p = team[t][i];
+                    System.out.printf(formatStr, 
+                            p.getController().getName(),
+                            p.getController().getCoder(),
+                            p.getKills(), p.getFrags(),
+                            p.getDeaths(), p.getEnemyBaseHits(),
+                            p.getSelfBaseHits(), p.getScore());
+                }
+            }
+            System.out.println("turns: " + turn);
+        }
+
         repaint();
     }
 
@@ -394,6 +426,7 @@ public class PaintballMain extends javax.swing.JFrame {
                         p.getSelfBaseHits(), p.getScore());
             }
         }
+        System.out.println("turns: " + turn);
     }//GEN-LAST:event_statsButtonActionPerformed
     
     /**
